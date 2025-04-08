@@ -1,0 +1,42 @@
+import streamlit as st
+from langchain.llms import VertexAI
+from langchain.chat_models import ChatVertexAI
+from langchain.schema import HumanMessage, AIMessage
+
+st.set_page_config(layout="wide", page_title="Persona Chat")
+
+st.title("GenAI Persona-to-Persona Chat")
+persona1 = st.text_input("Enter Persona-1 description", "A wise old professor who loves physics")
+persona2 = st.text_input("Enter Persona-2 description", "A curious high school student who questions everything")
+turns = st.slider("Number of dialogues", 1, 20, 5)
+
+start_convo = st.button("Start Conversation")
+
+if start_convo:
+    with st.spinner("Generating conversation..."):
+        llm = ChatVertexAI(temperature=0.7)
+
+        messages = [
+            HumanMessage(content=f"You are {persona1}. Begin a conversation with {persona2}."),
+        ]
+
+        dialogue = []
+        current_speaker = "Persona-1"
+
+ for i in range(turns):
+            response = llm(messages)
+            content = response.content
+            dialogue.append((current_speaker, content))
+            # Switch speaker
+            if current_speaker == "Persona-1":
+                messages.append(AIMessage(content=content))
+                messages.append(HumanMessage(content=f"Now respond as {persona2}"))
+                current_speaker = "Persona-2"
+            else:
+                messages.append(AIMessage(content=content))
+                messages.append(HumanMessage(content=f"Now respond as {persona1}"))
+                current_speaker = "Persona-1"
+
+        st.subheader("Conversation")
+        for speaker, text in dialogue:
+            st.markdown(f"**{speaker}**: {text}")
