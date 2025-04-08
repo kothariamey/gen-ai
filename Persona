@@ -1,0 +1,69 @@
+import streamlit as st
+from langchain.chat_models import ChatVertexAI
+from langchain.schema import HumanMessage
+import time
+
+st.set_page_config(layout="wide", page_title="Persona Chat with Memory")
+st.title("GenAI Persona-to-Persona Chat")
+
+# --- Initialize Session State ---
+if "dialogue_history" not in st.session_state:
+    st.session_state.dialogue_history = []
+if "conversation_log" not in st.session_state:
+    st.session_state.conversation_log = []
+if "turn" not in st.session_state:
+    st.session_state.turn = 0
+if "chat_active" not in st.session_state:
+    st.session_state.chat_active = False
+if "current_speaker" not in st.session_state:
+    st.session_state.current_speaker = "Persona-1"
+
+# --- Input Section ---
+persona1 = st.text_input("Persona 1", "A wise old professor who loves physics")
+persona2 = st.text_input("Persona 2", "A curious high school student who questions everything")
+turns = st.slider("Number of exchanges", 1, 20, 6)
+
+if st.button("Start Chat"):
+    st.session_state.dialogue_history = [f"{persona1}: Hello {persona2}, what would you like to discuss today?"]
+    st.session_state.conversation_log = [(persona1, "Hello " + persona2 + ", what would you like to discuss today?")]
+    st.session_state.turn = 1
+    st.session_state.chat_active = True
+    st.session_state.current_speaker = "Persona-2"
+    st.experimental_rerun()
+
+# --- Generate Response Using Memory ---
+def generate_reply(dialogue, speaker, responder):
+    prompt = f"The following is a conversation between {persona1} and {persona2}:\n\n"
+    prompt += "\n".join(dialogue)
+    prompt += f"\n\n{responder}, please reply next."
+
+    llm = ChatVertexAI(temperature=0.7)
+    response = llm([HumanMessage(content=prompt)])
+    return response.content
+
+# --- Run Chat Loop ---
+if st.session_state.chat_active and st.session_state.turn <= turns:
+    if st.session_state.current_speaker == "Persona-1":
+        responder = persona1
+        speaker = persona2
+    else:
+        responder = persona2
+        speaker = persona1
+
+    with st.spinner(f"{responder} is responding..."):
+        reply = generate_reply(st.session_state.dialogue_history, speaker, responder)
+
+    # Save to history
+    st.session_state.dialogue_history.append(f"{responder}: {reply}")
+    st.session_state.conversation_log.append((responder, reply))
+    st.session_state.turn += 1
+    st.session_state.current_speaker = "Persona-1" if responder == persona2 else "Persona-2"
+
+    time.sleep(2)
+    st.experimental_rerun()
+
+# --- Display Chat History ---
+if st.session_state.conversation_log:
+    st.subheader("Conversation History")
+    for speaker, message in st.session_state.conversation_log:
+        st.markdown(f"**{speaker}**: {message}")
